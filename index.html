@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#D4537E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="驚喜生成器">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>伴侶日常驚喜生成器</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background-color: #FFF5F7;}
+.app{max-width:400px;margin:0 auto;padding:1.25rem 1rem 2rem;font-family:system-ui, -apple-system, sans-serif}
+
+/* 頂部控制列 */
+.top-bar{display:flex;justify-content:center;align-items:center;margin-bottom:1rem;padding:0 4px}
+.app-title{font-size:16px;font-weight:600;color:#993556;display:flex;align-items:center;gap:6px}
+
+.tabs{display:flex;border-radius:28px;padding:3px;margin-bottom:1.25rem;background:#FBEAF0;border:0.5px solid #ED93B1}
+.tab{flex:1;padding:8px 0;font-size:13px;border:none;background:none;border-radius:24px;cursor:pointer;color:#993556;display:flex;align-items:center;justify-content:center;gap:4px}
+.tab.on{background:#D4537E;color:#fff;font-weight:500}
+
+/* 數據列 */
+.stats{display:flex;gap:8px;margin-bottom:1.1rem}
+.stat{flex:1;border-radius:12px;padding:9px 6px;text-align:center;border:0.5px solid #F4C0D1;background:#FBEAF0;cursor:default}
+.stat.clickable{cursor:pointer;transition:background .15s}
+.stat.clickable:hover{background:#F4D0DC}
+.stat.clickable.on{background:#D4537E;border-color:#D4537E}
+.stat.clickable.on b,.stat.clickable.on span{color:#fff}
+.stat b{display:block;font-size:20px;font-weight:500;color:#993556}
+.stat span{display:block;font-size:11px;color:#72243E;margin-top:1px}
+
+/* 刷新驚喜按鈕 */
+.stat.btn-center{display:flex;align-items:center;justify-content:center;flex-direction:column}
+.stat.btn-center span{font-size:14px;font-weight:500;color:#993556;margin-top:0}
+.stat.btn-center:hover span{color:#72243E}
+.progress-text{font-size:9px !important;color:#D4537E;opacity:0.8;margin-top:2px}
+
+/* 卡片舞台空間 */
+.stage{position:relative;height:420px;display:flex;align-items:center;justify-content:center;margin-bottom:.6rem;overflow:hidden}
+.bg2,.bg3{position:absolute;width:calc(100% - 20px);max-width:368px;height:420px;border-radius:20px;border:0.5px solid #F4C0D1;background:#FFF9FA;pointer-events:none}
+.bg3{transform:translateY(16px) scale(0.93);z-index:0}
+.bg2{transform:translateY(8px) scale(0.96);z-index:1}
+.card{position:absolute;width:100%;max-width:368px;border-radius:20px;padding:1.5rem 1.4rem 1.3rem;border:0.5px solid #ED93B1;background:#ffffff;z-index:2;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:pan-y;box-shadow:0 4px 12px rgba(244,192,209,0.2)}
+.card.grab{cursor:grabbing}
+.card.go-l{animation:goL .26s ease-in forwards}
+.card.go-r{animation:goR .26s ease-in forwards}
+.card.come-l{animation:comeL .26s ease-out forwards}
+.card.come-r{animation:comeR .26s ease-out forwards}
+@keyframes goL{to{transform:translateX(-115%) rotate(-14deg);opacity:0}}
+@keyframes goR{to{transform:translateX(115%) rotate(14deg);opacity:0}}
+@keyframes comeL{from{transform:translateX(-115%) rotate(-14deg);opacity:0}to{transform:translateX(0) rotate(0deg);opacity:1}}
+@keyframes comeR{from{transform:translateX(115%) rotate(14deg);opacity:0}to{transform:translateX(0) rotate(0deg);opacity:1}}
+
+/* 滑動提示標籤（已取消向右滑出現不喜歡的字樣，只保留向左滑的下一個靈感提示） */
+.ind{position:absolute;top:1rem;padding:4px 12px;border-radius:8px;font-size:12px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .1s;z-index:10}
+.ind.l{left:1rem;background:#FFEBEF;color:#D4537E}
+.ind.r{right:1rem;background:#EBFBF5;color:#0F6E56}
+
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:3px 11px;border-radius:16px;margin-bottom:.85rem}
+.badge.d{background:#EEEDFE;color:#3C3489}
+.badge.w{background:#E1F5EE;color:#085041}
+.badge.s{background:#FBEAF0;color:#72243E}
+.badge.t{background:#FAEEDA;color:#633806}
+
+.ctitle{font-size:19px;font-weight:500;color:#332025;line-height:1.4;margin-bottom:.7rem}
+.cdesc{font-size:13px;color:#665559;line-height:1.72}
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:.8rem}
+.tag{font-size:11px;padding:2px 8px;border-radius:8px;background:#FAFAFA;color:#88777A;border:0.5px solid #EAEAEA}
+.status-row{margin-top:.7rem;min-height:20px}
+.done-tag{font-size:11px;padding:2px 9px;border-radius:7px;background:#E1F5EE;color:#085041;display:inline-flex;align-items:center;gap:3px}
+.pend-tag{font-size:11px;color:#D4537E;display:inline-block}
+
+.cbot{margin-top:.9rem;padding-top:.85rem;border-top:0.5px solid #F4C0D1}
+.cbot-row{display:flex;align-items:center;gap:8px}
+.savebtn{font-size:12px;padding:6px 14px;border-radius:9px;background:none;border:0.5px solid #ED93B1;color:#993556;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.savebtn:hover{background:#FBEAF0}
+.savebtn.on{background:#FBEAF0;border-color:#D4537E;color:#72243E}
+.donebtn{flex:1;font-size:12px;padding:6px 0;border-radius:9px;background:none;border:0.5px solid #9FE1CB;color:#0F6E56;cursor:pointer;text-align:center;white-space:nowrap}
+.donebtn:hover{background:#F0FBF7}
+.donebtn.done{background:#E1F5EE;border-color:#1D9E75;color:#085041}
+.donebtn.hidden{visibility:hidden;pointer-events:none}
+
+/* 🎯 【優化與對齊】完美設定最底下文字：左邊靠左、右邊靠右 */
+.nav-hint{display:flex;justify-content:space-between;width:100%;max-width:368px;margin:0 auto .35rem;padding:0 4px}
+.nav-hint span{font-size:12px;color:#D4537E;display:flex;align-items:center;gap:3px}
+.nav-hint .left-hint{text-align:left;}
+.nav-hint .right-hint{text-align:right;}
+
+.ctr{text-align:center;font-size:12px;color:#D4537E;margin-bottom:.85rem}
+.no-card{text-align:center;padding:3rem 1rem;border-radius:20px;border:0.5px solid #F4C0D1;background:#FFF9FA;width:100%}
+.no-card p{color:#88777A;font-size:13px;line-height:1.8;margin-top:.5rem}
+
+/* 彈出提示視窗 */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:flex;align-items:center;justify-content:center}
+.dialog{background:#ffffff !important;border-radius:18px;padding:1.5rem;max-width:320px;width:90%;text-align:center;border:0.5px solid #ED93B1;box-shadow:0 8px 24px rgba(0,0,0,0.15)}
+.dialog h3{font-size:16px;font-weight:600;color:#332025;margin-bottom:.6rem;display:flex;align-items:center;justify-content:center;gap:6px}
+.dialog p{font-size:13px;color:#665559;line-height:1.65;margin-bottom:1.25rem}
+.dialog-btns{display:flex;gap:8px}
+.dbtn{flex:1;padding:9px 0;border-radius:10px;font-size:13px;cursor:pointer;border:0.5px solid #ED93B1;font-weight:500}
+.dbtn.cancel{background:none;color:#993556}
+.dbtn.cancel:hover{background:#FBEAF0}
+.dbtn.confirm{background:#D4537E;color:#fff;border-color:#D4537E}
+.dbtn.confirm:hover{background:#B33E68}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="top-bar">
+    <div class="app-title"><i class="ti ti-heart-handshake"></i> 伴侶日常驚喜建議</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" id="te" onclick="goTab('e')"><i class="ti ti-sparkles"></i> 探索驚喜</button>
+    <button class="tab" id="ts" onclick="goTab('s')"><i class="ti ti-heart"></i> 我的收藏</button>
+  </div>
+
+  <div id="ve">
+    <div class="stats">
+      <div class="stat"><b id="n-saved">0</b><span>已收藏</span></div>
+      <div class="stat"><b id="n-done">0</b><span>已執行</span></div>
+      <div class="stat clickable btn-center" id="stat-today" onclick="askRefresh()">
+        <span>刷新驚喜</span>
+      </div>
+    </div>
+    <div class="stage" id="estage"></div>
+    <div class="nav-hint">
+      <span class="left-hint"><i class="ti ti-arrow-left"></i> 下一個靈感</span>
+      <span class="right-hint">上一個靈感 <i class="ti ti-arrow-right"></i></span>
+    </div>
+    <div class="ctr" id="ectr"></div>
+  </div>
+
+  <div id="vs" style="display:none">
+    <div class="stats">
+      <div class="stat clickable" id="sa" onclick="setF('all')"><b id="cnt-all">0</b><span>已收藏</span></div>
+      <div class="stat clickable" id="sp" onclick="setF('pend')"><b id="cnt-pend">0</b><span>未執行</span></div>
+      <div class="stat clickable" id="sd" onclick="setF('done')"><b id="cnt-done">0</b><span>已執行</span></div>
+    </div>
+    <div class="stage" id="sstage"></div>
+    <div class="nav-hint" id="snav">
+      <span class="left-hint"><i class="ti ti-arrow-left"></i> 下一個靈感</span>
+      <span class="right-hint">上一個靈感 <i class="ti ti-arrow-right"></i></span>
+    </div>
+    <div class="ctr" id="sctr"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" style="display:none" role="dialog" aria-modal="true">
+  <div class="dialog">
+    <h3><i class="ti ti-refresh" style="color:#D4537E"></i> 確定要刷新驚喜？</h3>
+    <p>系統將從 360 則大資料庫中依序為您抽出「完全不重複」的 12 則全新靈感。您的收藏記錄不會消失。</p>
+    <div class="dialog-btns">
+      <button class="dbtn cancel" onclick="closeDialog()">取消</button>
+      <button class="dbtn confirm" onclick="doRefresh()">確定發送</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// 1. 360 則核心大數據母庫
+// ==========================================
+var MASTER_DATABASE = [
+  {dbId:1, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'客廳露營夜', d:'今晚關掉大燈與電視，在客廳鋪滿毛毯與枕頭，假裝在山上露營，躺著放鬆聊天。', tags:['宅家','免費']},
+  {dbId:2, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'超市雙盲冒險', d:'一起去超商，分開 5 分鐘各自挑選一個對方絕對會喜歡的零食，結帳前不准看購物車！', tags:['日常','有趣']},
+  {dbId:3, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'深夜兜風霜淇淋', d:'深夜換上最輕便的衣服，手牽手散步或開車去遠一點的超商，共吃一支霜淇淋。', tags:['浪漫','深夜']},
+  {dbId:4, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'重溫第一次約會', d:'去你們當初相識或第一次正式約會的店，點一樣的食物，聊聊那時的第一印象。', tags:['懷舊','儀式感']},
+  {dbId:5, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'無手機早午餐', d:'找一家舒適的早餐店，把兩人的手機鎖在包包裡 30 分鐘，專心看著對方吃早餐聊天。', tags:['專注','日常']},
+  {dbId:6, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'家裡私人電影院', d:'由對方選一部平時想看卻沒空看的片，你準備好爆米花與飲料，依偎在沙發上看。', tags:['舒適','宅家']},
+  {dbId:7, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'讚美專注的瞬間', d:'在對方認真工作、洗碗或忙碌時，走過去輕聲說：『我好喜歡你專注做這件事的樣子。』', tags:['細膩','零成本']},
+  {dbId:8, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'突如其來的表白', d:'沒任何理由，突然看著對方的眼睛真誠笑著說：『天天看你，今天突然覺得你特別迷人。』', tags:['心動','真心']},
+  {dbId:9, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'遞杯水的溫暖', d:'在對方辛苦忙完一段工作坐下時，遞上一杯熱水並說：『今天辛苦你囉，謝謝你。』', tags:['體貼','解壓']},
+  {dbId:10, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'有你在真安心', d:'在睡前或散步時，握著對方的手說：『有你在我身邊，真的讓我覺得很踏實、很安心。』', tags:['安全感','承諾']},
+  {dbId:11, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'真誠的穿搭稱讚', d:'今天出門前，認真看著對方說：『你今天挑的這件衣服很好看，非常適合你！』', tags:['關注','自信']},
+  {dbId:12, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'發現對方微小付出', d:'看見對方順手整理了玄關或倒了垃圾，立刻說：『謝謝你注意到這個，幫了大忙！』', tags:['日常']},
+  {dbId:13, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'超商專屬外送員', d:'下班回家前，偷偷買一杯祂平時最愛喝的熱拿鐵或珍奶，回家時像變魔術般端出來。', tags:['讀心術','暖心']},
+  {dbId:14, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'化妝鏡上的便利貼', d:'在便利貼寫下一句『今天也要加油，晚上回家抱抱，愛你喔』，偷偷貼在化妝鏡上。', tags:['神祕','用心']},
+  {dbId:15, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'外套口袋的巧克力', d:'趁對方準備出門前，偷偷在祂常用的外衣口袋或包包側邊塞一顆祂喜歡的糖果。', tags:['暖心','細節']},
+  {dbId:16, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'默默清空待辦清單', d:'觀察對方最近覺得很累一直沒做的事（如清理鞋櫃），趁對方不在時默默幫祂做完。', tags:['貼心','行動力']},
+  {dbId:17, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'週末驚喜預約', d:'查好一個沒去過的景點，幫對方留好時間，截圖發給對方說：『這天留給我，我們去這。』', tags:['期待感','主動']},
+  {dbId:18, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'神祕的車上小零食', d:'開車時在對方習慣坐的副駕駛座置物箱或門邊，塞一包祂愛吃、但平時捨不得常買的小零嘴。', tags:['細節']},
+  {dbId:19, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'無聲的 20秒充電擁抱', d:'走過去從身後或正面抱住對方，默默倒數 20 秒，期間什麼都不說，只感受彼此呼吸。', tags:['親密','減壓']},
+  {dbId:20, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'貼心的肩頸按摩', d:'在對方看電腦、用手機或做完家事時，悄悄站在背後幫祂揉肩膀 5 分鐘。', tags:['體貼','日常']},
+  {dbId:21, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'溫柔的幫吹頭髮', d:'洗完澡後，主動拿起吹風機提議：『今天我來幫你吹頭髮吧。』用指尖的溫度照顧對方。', tags:['簡單','親密']},
+  {dbId:22, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'馬路上的十指緊扣', d:'一起在外散步準備過馬路時，主動牽起對方的手，並把手指緊緊扣在一起給予安全感。', tags:['日常','溫暖']},
+  {dbId:23, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'溫柔的摸頭殺', d:'在對方開玩笑、撒嬌，或是覺得有點累的時候，伸出手輕輕揉揉祂的頭髮和頭頂。', tags:['寵溺','簡單']},
+  {dbId:24, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'捧臉深情對視', d:'走過去用雙手輕輕捧起對方的臉頰，什麼都不說，深情凝視對方 3 秒鐘再給予大微笑。', tags:['心動']},
+  {dbId:25, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雙人單車慢遊', d:'租兩輛單車或共騎一輛，沿著河濱步道 or 慢車道漫無目的地騎車，吹吹風。', tags:['戶外','運動']},
+  {dbId:26, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'陽台星空茶會', d:'今晚不在客廳，搬張椅子到陽台，泡一壺熱茶，熄滅室內燈光一起看夜景。', tags:['宅家','放鬆']},
+  {dbId:27, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手作黏土挑戰', d:'買一包便宜的文具黏土，設定 10 分鐘，各自捏出一個「對方外形」的小公仔送給彼此。', tags:['有趣','宅家']},
+  {dbId:28, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'探索城市新巷弄', d:'挑一個沒去過的陌生捷運站或街區下車，不看地圖，純粹靠直覺左右轉探險。', tags:['探索','冒險']},
+  {dbId:29, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'早晨傳統市場尋寶', d:'週末早起半小時，一起去熱鬧的传统市場，找一家排隊最長的古早味早餐店內用。', tags:['日常','美食']},
+  {dbId:30, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'書店盲選讀書會', d:'一起去大書店，給各自 15 分鐘，選一本「你覺得對方這週會想看」的書介紹給祂。', tags:['文青','專注']},
+  {dbId:31, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'花市微型植物購', d:'一起逛逛花市，挑選一盆不到百元、好照顧的小多肉植物，共同決定祂在家的擺放位置。', tags:['日常','療癒']},
+  {dbId:32, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雙人拼圖挑戰', d:'準備一個 100 片左右的小拼圖，兩人在餐桌上並肩作戰，規定只能用單手協助彼此。', tags:['有趣','宅家']},
+  {dbId:33, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雨天車內聽雨音樂', d:'如果遇到下雨天，開車停在安全安全的地方，不熄火，放著慢音樂，聽雨點拍打車頂。', tags:['雨天','浪漫']},
+  {dbId:34, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'精選桌遊夜', d:'翻出家裡久違的雙人桌遊或撲克牌，今晚不滑手機，用一場簡單的遊戲決定誰明天洗碗。', tags:['有趣','宅家']},
+  {dbId:35, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'校園操場夜散步', d:'晚上去附近的學校操場散步，沿著跑道外圈慢慢走，聊聊彼此國中或國小最厲害的事。', tags:['懷舊','免費']},
+  {dbId:36, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'微型野餐派對', d:'在客廳地板鋪上野餐墊，把晚飯裝進保鮮盒裡吃，假裝今天全家在郊外草皮度假。', tags:['宅家','儀式感']},
+  {dbId:37, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'甜點DIY小烘焙', d:'買現成的鬆餅粉，兩人在廚房一起調麵糊，煎出幾個形狀奇特但充滿愛心的鬆餅。', tags:['廚房','美食']},
+  {dbId:38, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'無目的公車冒險', d:'隨便跳上一輛看起來順眼的公車，坐過 8 站後準時下車，在該站附近找一家小吃店冒險。', tags:['冒險','探索']},
+  {dbId:39, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手工洗車初體驗', d:'好天氣時，兩人一起拿著水桶、海綿在門口自助洗車，一邊潑水一邊把愛車洗得亮晶晶。', tags:['日常','運動']},
+  {dbId:40, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'客製化特調調酒夜', d:'用雪碧、果汁跟家裡現有的微醺飲料，兩人各自研發一款命名為對方名字的專屬特調。', tags:['宅家','放鬆']},
+  {dbId:41, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'清晨無人海灘', d:'設定清晨鬧鐘，在天剛亮、海灘還沒有遊客時，並肩坐在沙灘上吹第一道海風。', tags:['浪漫','戶外']},
+  {dbId:42, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'文青藝廊微散步', d:'找個週末下午去市區免費參觀的微型畫廊或文創市集，安靜地並肩走走看看。', tags:['文青','探索']},
+  {dbId:43, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雙人拉筋拉伸操', d:'在睡前播點鋼琴音樂，兩人互相在瑜珈墊上協助對方推背、拉筋，放鬆整天的疲勞。', tags:['健康','放鬆']},
+  {dbId:44, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'懷舊拍貼機紀念', d:'如果路過街頭的韓式拍貼機，硬拉著對方進去，戴上搞笑頭飾，留下今年最逗趣的合影。', tags:['有趣','儀式感']},
+  {dbId:45, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'後山秘境看夜景', d:'開車或騎車去附近半山腰的觀景台，把大燈關掉，靠在車頭一起俯瞰城市萬家燈火。', tags:['浪漫','放鬆']},
+  {dbId:46, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'一起逛老玩具店', d:'去逛逛二手古著店或老玩具店，指著小時候玩過的公仔，跟對方炫耀自己的童年。', tags:['懷舊','有趣']},
+  {dbId:47, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'客廳卡拉OK大賽', d:'打開電視的 YouTube 搜尋去人聲伴奏，兩人拿著遙控器當麥克風，深情對唱一首情歌。', tags:['宅家','有趣']},
+  {dbId:48, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'尋找最美落羽松', d:'查查當季最適合的自然步道，開車去走走，沿途互相扶持，拍幾張大自然合照。', tags:['戶外','舒壓']},
+  {dbId:49, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'無微不至的肯定', d:'當對方換好出門的鞋子時，由衷讚美：『你今天搭的鞋子跟褲子很好看，很有精神！』', tags:['讚美','細節']},
+  {dbId:50, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'真誠的後盾宣告', d:'當對方在餐桌上嘆氣時，輕拍祂的膝蓋說：『管外面工作多煩，回家都有我在，別怕。』', tags:['安心','深情']},
+  {dbId:51, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'今天謝謝你煮飯', d:'吃完最後一口飯時，認真看著對方說：『今天謝謝你煮這麼好吃的飯，我覺得好幸福。』', tags:['感恩','日常']},
+  {dbId:52, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'突然的熱戀期情話', d:'發簡訊給在隔壁房間的對方：『突然想到，我們在一起這麼久了，我還是好喜歡你。』', tags:['心動','真心']},
+  {dbId:53, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'肯定對方的耐心', d:'在輔導孩子功課或忙完繁瑣家事後，對祂說：『你剛剛真的很有耐心，我覺得你很棒。』', tags:['稱讚','溫柔']},
+  {dbId:54, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你懂我的幽默', d:'當兩人都被同一個電視笑話逗笑時，笑著對祂說：『世界上果然只有你最懂我的笑點。』', tags:['默契','零成本']},
+  {dbId:55, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你的聲音很好聽', d:'在講電話或睡前聊天聊天時，輕聲對祂說：『不知道為什麼，聽你說話總能讓我很放鬆。』', tags:['真心','安定']},
+  {dbId:56, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'提議幫對方分擔', d:'看到對方準備走向陽台晾衣服，立刻跳起來說：『今天這桶我來，你坐著好好休息。』', tags:['體貼','行動']},
+  {dbId:57, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'讚美對方的善良', d:'當看到對方順手幫了路人或外送員後，對祂說：『你剛剛貼心的動作，真的好迷人。』', tags:['細膩','關注']},
+  {dbId:58, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'真希望時間變慢', d:'並靠在沙發放鬆時，看著電視輕聲說：『希望時間可以過慢一點，好喜歡這樣抱著。』', tags:['深情','溫柔']},
+  {dbId:59, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'謝謝你包容我的脾氣', d:'在兩人都很放鬆的時候，真誠地說：『謝謝你平時總能包容我的小任性，我很感激。』', tags:['真心','感恩']},
+  {dbId:60, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'今天穿這件真帥/美', d:'早上出門前，攔下對方，幫祂理一下衣領並說：『這件衣服你穿起來特別精神、特別好看。』', tags:['即時','自信']},
+  {dbId:61, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'詢問對方的放鬆方式', d:'關心地問：『你最近壓力好像有點大，週末有沒有特別想去哪裡徹底放空一下？』', tags:['聆聽','體貼']},
+  {dbId:62, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你是家裡的重心', d:'在全家吃飯時，當著大家的面說：『爸爸/媽媽真的好厲害，是我們家最棒的支柱。』', tags:['稱讚','家庭']},
+  {dbId:63, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'今天過得好嗎', d:'下班見面第一句話，不是聊家事，而是看著對方的眼睛溫柔問：『你今天過得好嗎？』', tags:['關心','日常']},
+  {dbId:64, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'我想聽你的意見', d:'在遇到工作或生活選擇題時，主動問：『這件事我想聽聽你的想法，你最懂我了。』', tags:['尊重','信任']},
+  {dbId:65, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'突然的想念告白', d:'中午休息時間發封訊息給對方：『沒事，只是忙到一半突然有點想你，好好吃飯喔。』', tags:['甜蜜','即時']},
+  {dbId:66, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'跟你聊天最開心', d:'在長談結束後，伸個懶腰笑著說：『果然跟全世界聊天，還是跟你聊起來最過癮。』', tags:['默契','深情']},
+  {dbId:67, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你今天做得很好了', d:'當對方因為某件事自責或沮喪時，摸摸祂的臉說：『別給自己太大壓力，你已經做得很好了。』', tags:['安定','安慰']},
+  {dbId:68, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'下輩子還要選你', d:'睡前關燈的黑夜裡，握緊祂的手悄悄說：『如果能重來，我一定還是會選你當老婆/老公。』', tags:['深情','承諾']},
+  {dbId:69, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'讚美對方的幽默感', d:'在對方講了一個冷笑話後，笑著掐掐祂的臉：『你怎麼可以每天都有這麼多古怪的小聰明。』', tags:['有趣','甜蜜']},
+  {dbId:70, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'有你一起老去真好', d:'看見鏡子裡彼此的微小變化，笑著依偎過去：『能跟你一起慢慢變老，是最浪漫的事。』', tags:['浪漫','承諾']},
+  {dbId:71, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'裝是我的第一名', d:'在討論某個偶像或名人時，突然指著對方說：『雖然祂 hon 帥/美，但在我心裡你才是第一名。』', tags:['有趣','甜蜜']},
+  {dbId:72, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你的眼神好溫柔', d:'對視聊天時，突然輕聲對祂說：『你現在看我的眼神好溫柔，讓我想起剛戀愛的時候。』', tags:['細膩','真心']},
+  {dbId:73, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'副駕駛座的小驚喜', d:'在對方拉開副駕駛座車門前，提前在座位上放一朵祂喜歡的小花或一包小點心。', tags:['浪漫','細節']},
+  {dbId:74, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'洗澡前的熱毛巾', d:'在對方準備進去洗澡前，提前用微波爐或熱水弄一條暖洋洋的乾淨熱毛巾遞給祂。', tags:['體貼','溫暖']},
+  {dbId:75, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'神祕的午餐加菜', d:'在外送 App 上偷偷點一份對方公司附近的精緻下午茶甜點，直接外送到祂辦公室。', tags:['驚喜','微預算']},
+  {dbId:76, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'幫忙補滿汽車油箱', d:'趁對方放假休息時，默默拿走車鑰匙開去加油站把油箱加滿，並把擋風玻璃擦乾淨。', tags:['行動力','超貼心']},
+  {dbId:77, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'藏在皮夾的合照', d:'偷偷去洗一張你們最近拍得最好的兩人小合照，趁對方不注意塞進祂皮夾的夾層裡。', tags:['神祕','儀式感']},
+  {dbId:78, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'冬夜的暖暖包', d:'在寒冷的冬日清晨對方準備出門上班前，提前幫祂把暖暖包搓熱，塞進祂的大衣口袋。', tags:['體貼','細節']},
+  {dbId:79, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'代買購物車小物', d:'偷偷看一眼對方在網購電商平台遲遲沒下單、捨不得買的實用生活小物，偷偷下單送祂。', tags:['用心','驚喜']},
+  {dbId:80, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'擦亮對方的皮鞋/球鞋', d:'趁著週末深夜，拿鞋刷把對方常穿、有點髒污的皮鞋或休閒球鞋默默擦得像新的一樣。', tags:['細節','行動力']},
+  {dbId:81, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'預先調好洗澡水溫', d:'聽到對方拖著疲憊的步伐回家，提前進浴室幫祂放好溫暖的泡澡水，並點上紓壓香氛。', tags:['放鬆','超貼心']},
+  {dbId:82, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'手作早餐愛心蛋', d:'今天煎荷包蛋時，用模具或手工細心切出一個愛心形狀，放在對方的吐司正中央。', tags:['廚房','用心']},
+  {dbId:83, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'冰鎮切好的綜合水果', d:'在炎熱的下午，默默把西瓜或芒果切成精緻的小方塊，用牙籤插好，端到忙碌的對方手邊。', tags:['日常','貼心']},
+  {dbId:84, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'幫忙充飽所有 3C 手機', d:'睡前巡視客廳時，順手把對方掉在沙發上、快沒電的手機跟藍牙耳機全部插上充電線。', tags:['日常','細節']},
+  {dbId:85, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'突然的週五外帶大餐', d:'星期五下班不煮飯，偷偷買好對方平時最愛吃的那家排隊名店鹽酥雞或壽司回家慶祝週末。', tags:['日常','美食']},
+  {dbId:86, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'車上預備好祂乾淨的外套', d:'知道最近天氣早晚溫差大，偷偷在車子後座放一件對方喜歡且洗乾淨的防風防曬薄外套。', tags:['體貼','日常']},
+  {dbId:87, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'藏在書本裡的告白便簽', d:'在對方最近正在看的那本書的最新頁面裡，偷偷夾一張寫著『今天也覺得你傷迷人』的小紙條。', tags:['神祕','用心']},
+  {dbId:88, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'幫忙預約舒壓SPA', d:'看到對方最近頻繁揉肩膀肩膀，偷偷幫祂預約好週末家附近的盲人按摩，叫祂那天只管放鬆。', tags:['計劃感','超貼心']},
+  {dbId:89, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'冰箱藏著祂愛喝的飲料', d:'去超商時，買兩罐對方平時最喜歡喝的限定口味啤酒或無糖茶，冰在冰箱最前排。', tags:['日常','讀心術']},
+  {dbId:90, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'客製化手機解鎖桌布', d:'趁對方不注意，用手機把兩人的搞笑鬼臉合照換成祂的手機桌布，等祂下次打來自己發現發笑。', tags:['有趣','甜蜜']},
+  {dbId:91, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'早晨準備好乾淨牙刷', d:'清晨比對方早起時，順手在祂的牙刷上擠好適量的牙膏，杯子裝滿水，優雅擺在漱口台上。', tags:['生活細節','溫柔']},
+  {dbId:92, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'買一束沒有理由的百元鮮花', d:'路過花店時，不買名貴玫瑰，就買一小束一兩百元的向日葵或滿天星，回家隨手插在花瓶。', tags:['浪漫','儀式感']},
+  {dbId:93, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'沙發放鬆的枕大腿', d:'在客廳看電視時，自然地把頭靠在對方的膝蓋或大腿上，讓對方順手摸摸你的耳朵。', tags:['親密','放鬆']},
+  {dbId:94, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'並排坐時的輕碰腳尖', d:'坐在餐桌各自滑手機或工作時，偷偷在桌底下伸出腳尖，輕輕蹭一下對方的腳踝。', tags:['趣味','日常']},
+  {dbId:95, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'背後的下巴靠肩膀', d:'當對方站在流理台洗碗或切菜時，從背後輕輕貼上去，把下巴靠在祂的肩膀上撒嬌。', tags:['親密','溫柔']},
+  {dbId:96, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'走路時幫忙擋人群', d:'在熱鬧的夜市或大馬路散步時，主動走到靠近車道的那一側，用身體護著對方走路。', tags:['安全感','體貼']},
+  {dbId:97, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'看電視時的指尖勾勾', d:'兩人都靠在沙發椅背上時，伸出手用你的尾指去悄悄勾住對方的尾指，輕輕晃動。', tags:['趣味','心動']},
+  {dbId:98, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'用掌心幫對方暖手', d:'在冷氣房或冬天覺得對方手冰冷時，立刻用雙手把祂的小手包裹住，哈口熱氣幫祂揉揉。', tags:['溫暖','日常']},
+  {dbId:99, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'幫忙撥開擋住眼睛的瀏海', d:'對視講話講到一半時，伸手溫柔地把對方掉在額頭、擋住視線的一縷碎髮撥到耳朵後面。', tags:['細類','溫柔']},
+  {dbId:100, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'突如其來的背後環抱', d:'趁對方在玄關穿鞋、或者站在窗前發呆時，毫無預警地從背後雙手環抱住祂的腰。', tags:['親密','心動']},
+  {dbId:101, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'手心傳遞的小揉捏', d:'在外手牽手散步散步時，主動稍微用點力捏捏對方的掌心，然後轉頭對祂調皮地笑一笑。', tags:['趣味','甜蜜']},
+  {dbId:102, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'睡醒時的額頭輕親', d:'清晨睜開眼睛看到對方還在熟睡，撐起身體，在祂的額頭上留下一個極其輕柔的早安吻。', tags:['親密','清晨']},
+  {dbId:103, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'精緻的雙手護手霜塗抹', d:'在擠護手霜時，順便擠一點在對方手上，然後握著祂的手，細心地幫祂把手背、指縫推勻。', tags:['日常','體貼']},
+  {dbId:104, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'開車時的右手緊握', d:'開車遇到紅燈停下時，右手不放排檔桿，主動移過去緊緊握住副駕駛座對方左手. 。', tags:['安全感','日常']},
+  {dbId:105, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'聊天時的輕拍膝蓋', d:'坐在一起討論家庭公事時，手自然放在對方膝蓋上，講到重要處輕輕揉一下表示支持。', tags:['陪伴','安定']},
+  {dbId:106, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'幫對方整理衣服領口', d:'出門前攔下對方，細心地幫祂把翻過去的外套領口理平，再順手幫祂拍拍祂肩膀上的灰塵。', tags:['生活細節','溫柔']},
+  {dbId:107, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'幫忙揉揉痠痛的手腕', d:'看到對方長時間打電腦鍵盤，主動把祂的手拉過來，用大拇指指腹幫祂揉揉手腕大魚際。', tags:['體貼','日常']},
+  {dbId:108, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'並排走時的肩膀輕撞', d:'散步走在安靜的林蔭道上時，調皮地故意用自己的肩膀去輕撞一下對方的肩膀。', tags:['趣味','甜蜜']},
+  {dbId:109, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雙人清晨花市慢遊', d:'設定比平時早起一小時的鬧鐘，趁清晨陽光剛露臉時，一起去逛花市，呼吸植物的新鮮香氣。', tags:['日常','植物']},
+  {dbId:110, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手作黏土微型雕刻', d:'去文具店買幾包最便宜的色黏土，設定15分鐘，兩人都捏出一個代表對方的怪異小動物。', tags:['有趣','宅家']},
+  {dbId:111, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'二手舊書攤尋寶記', d:'下午一起散步去老街區的舊書店，約定各自找一本「小時候看過最懷舊」的連環漫畫分享。', tags:['文青','懷舊']},
+  {dbId:112, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'海邊音樂泡腳夜', d:'晚上開車或騎車去海堤，不帶椅子，直接坐在後車廂或防波堤，放音樂、腳泡著溫涼的海水。', tags:['探索','戶外']},
+  {dbId:113, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'無目的夜間巴士探險', d:'挑一輛沒搭過的夜間公車，坐上最後一排，靠在一起看窗外的夜間街景，直到終點站再折返。', tags:['冒險','浪漫']},
+  {dbId:114, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雙人居家拉伸放鬆', d:'在睡前鋪開瑜珈墊，播放輕柔鋼琴曲，兩人輪流互相協助拉開緊繃的背部與大腿筋骨。', tags:['健康','放鬆']},
+  {dbId:115, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'校園深夜操場散步', d:'等學校下課後去空曠的操場慢慢繞圈，一邊走一邊聊聊以前高中的死黨和最討厭的科目。', tags:['懷舊','免費']},
+  {dbId:116, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'客廳微型小野餐', d:'今天晚餐不用餐桌，直接把防水地墊鋪在客廳電視前，把飯菜裝進野餐籃，像在草地上吃。', tags:['宅家','儀式感']},
+  {dbId:117, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手作爆米花電影大賽', d:'買那種可以放在瓦斯爐上加熱的老式爆米花錫箔盒，一起看著它膨脹，隨後窩在沙發看恐怖片。', tags:['廚房','有趣']},
+  {dbId:118, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雨天車內音樂咖啡廳', d:'下大雨時，開車到寬闊的河濱停車場，關掉大燈，手裡握著熱咖啡，靜靜聽雨水敲擊車頂。', tags:['雨天','放鬆']},
+  {dbId:119, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'老式卡帶與黑膠尋寶', d:'週末午後一起去逛逛舊貨市集或二手唱片行，指著那些老卡帶，回憶初戀時流行什麼歌。', tags:['懷舊','探索']},
+  {dbId:120, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'自助洗車瘋狂派對', d:'在好天氣的傍晚，帶上大軟海綿和水桶，兩人一起在門口幫愛車洗澡，互相抹泡沫取樂。', tags:['日常','運動']},
+  {dbId:121, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'深夜自調客製酒吧', d:'利用超商買的果汁、氣泡水與現有微醺飲料，兩人在廚房調出兩杯從未喝過的專屬特調。', tags:['微醺','放鬆']},
+  {dbId:122, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'藝廊免費畫展微約會', d:'找個週六下午，去免費參觀的市立美術館或社區文創展覽，手牽手靜靜欣賞各類文青作品。', tags:['文青','探索']},
+  {dbId:123, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雙人手作手拉坯初體驗', d:'去文創園區報名一堂一小時的簡單陶藝課，像電影情節一樣，四隻手共同捏出一個歪斜的小碗。', tags:['儀式感','工藝']},
+  {dbId:124, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'傳統早市排隊排骨酥冒險', d:'週末起個大早，一起去熱鬧的在地菜市場，專挑那種排隊排最長的老字號小吃當早午餐。', tags:['日常','美食']},
+  {dbId:125, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'後山高空煙火夜景', d:'開車到半山腰無人的大空地，把後車廂掀開，並肩坐著看山腳下繁華的夜市霓虹與路燈。', tags:['浪漫','山區']},
+  {dbId:126, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'回憶老相簿馬拉松', d:'翻出兩人最舊的手機雲端備份，或者塵封的結婚、學生時代紙本相本，一頁頁吐槽那時的髮型。', tags:['懷舊','宅家']},
+  {dbId:127, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'客廳大型紙箱城堡', d:'如果家裡有網購大紙箱，和伴侶一起把它剪開黏成一個貓咪或寵物用的小迷宮，重回童年。', tags:['有趣','動手']},
+  {dbId:128, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'河濱漫跑三公里', d:'換上慢跑鞋，設定Zone 2低心率的慢速度，不求快，兩人並肩在河濱一邊慢跑一邊聊天聊天。', tags:['健康','戶外']},
+  {dbId:129, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'老派西餐廳西裝約會', d:'不一定要昂貴，但挑一家有老式鋼琴或紅白桌巾的西餐廳，兩人在餐桌上穿得稍微正式一點去吃飯。', tags:['儀式感','精緻']},
+  {dbId:130, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'社區頂樓曬太陽', d:'挑個冬日無風的下午，拿兩罐溫飲料去公寓頂樓頂樓，靠著牆壁曬曬背，聊聊未來的計畫。', tags:['舒適','免費']},
+  {dbId:131, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'陽台微型燒烤大會', d:'用不生煙的小電烤盤，兩人在陽台烤幾串甜不辣與肉片，吹著涼風聊天聊天，像開深夜食堂。', tags:['宅家','美食']},
+  {dbId:132, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手作皮革鑰匙圈', d:'去文具店買簡單的皮革材料包，一人負責敲字母、一人負責打洞，做出印有彼此生日的鑰匙圈。', tags:['工藝','用心']},
+  {dbId:133, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'精準捕捉對方的帥氣', d:'在對方專注倒車入庫、或者認真修理組裝家具時，看著祂說：『你認真的側臉真的很帥。』', tags:['讚美','細膩']},
+  {dbId:134, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'溫柔的肩膀依靠', d:'在長途坐車或沙發看電視時，靠在祂肩頭輕聲說：『有你的肩膀靠著，我什麼都不怕。』', tags:['真心','安全感']},
+  {dbId:135, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'謝謝你每天這麼早起', d:'在清晨對方準備出門打拼前，握著祂的手說：『謝謝你每天都這麼早起為我們這個家努力。』', tags:['感恩','日常']},
+  {dbId:136, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'突然的表白訊息', d:'在對方去巷口買東西的短短幾分鐘，發簡訊給祂：『雖然才分開一下，但我已經開始想你了。』', tags:['心動','甜蜜']},
+  {dbId:137, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'肯定對方的廚藝微調', d:'吃飯時吃出菜色的小變化，立刻說：『你今天醬汁比例抓得真好，比外面餐廳還好吃！』', tags:['關注','日常']},
+  {dbId:138, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你的笑聲治癒了我', d:'當兩人都哈哈大笑時，突然對祂說：『你的笑聲真的好有感染力，聽完我今天累都消了。』', tags:['療癒','零成本']},
+  {dbId:139, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'這件事聽你的就對了', d:'在決定家庭大事大方向時，認真地看著對方說：『這方面你最有遠見，這次全聽你的。』', tags:['尊重','信任']},
+  {dbId:140, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'跳出來幫忙拖地', d:'看到對方累得坐在椅子上準備去拿拖把，立刻搶過來：『今天地我承包了，你快去洗熱水澡。』', tags:['體貼','行動']},
+  {dbId:141, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'讚美對方的生活智慧', d:'當對方利落解決一個生活小難題（如換燈泡），對祂說：『你怎麼什麼都懂，太有安全感了。』', tags:['稱讚','安全感']},
+  {dbId:142, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'真想把時間定格', d:'並肩躺在床頭看星空時，悄悄挪過去貼著耳邊說：『如果時間可以永遠停在這一刻就好了。』', tags:['深情','溫柔']},
+  {dbId:143, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'謝謝你成為孩子的榜樣', d:'當孩子睡下後，溫柔地對伴侶說：『謝謝你平時對孩子這麼有耐心，你真的是最棒的父母。』', tags:['家庭','感恩']},
+  {dbId:144, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你今天穿這件真精神', d:'在對方換好衣服準備去重要開會前，拉住祂幫忙順理一下衣角：『現件衣服顯得你特別專業、特別帥/美。』', tags:['日常','自信']},
+  {dbId:145, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你想去哪我陪你', d:'看到對方最近老是在看某個旅遊景點，主動說：『這週末我時間都排空，你想去哪我都陪你。』', tags:['聆聽','體貼']},
+  {dbId:146, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你是我最棒的聽眾', d:'在抱怨完一堆工作雜事後，認真跟對方道謝：『謝謝你總是這麼有耐心聽我吐苦水，有你真好。』', tags:['感恩','深度對話']},
+  {dbId:147, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你做的決定都是對的', d:'在對方猶豫不決、缺乏信心時，堅定地拍拍祂的手：『大膽去做吧，不論如何我都支持你。』', tags:['信任','守護']},
+  {dbId:148, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'發一封無意義的調情信', d:'上班中發封簡訊：『今天天氣很好，跟我們第一次見面那天一樣，突然特別想你。』', tags:['甜蜜','即時']},
+  {dbId:149, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'跟你在一起最放鬆', d:'下班踏進家門、換上睡衣後，靠在對方身上嘆口氣：『果然回到你身邊，才是最放鬆的。』', tags:['真心','安定']},
+  {dbId:150, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'你今天受委屈了', d:'知道對方今天在工作上被刁難，回家晚飯後遞上熱茶：『你今天受委屈了，晚上我幫你按摩。』', tags:['解壓','安慰']},
+  {dbId:151, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'下輩子我還要追你', d:'散步手牽手時，突然轉頭看著對方笑著說：『下輩子如果再次遇到你，我一定還是會先追你。』', tags:['浪漫','承諾']},
+  {dbId:152, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'讚美對方的聲音', d:'睡前關燈後，在黑暗中輕聲對祂說：『好喜歡聽你低聲說話的聲音，讓我心裡特別踏實。』', tags:['細膩','真心']},
+  {dbId:153, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'儀表板上的便利貼告白', d:'趁對方還沒上車，在汽車儀表板或者方向盤正中央貼一張寫著『開車小心，想你』的手寫條。', tags:['神祕','細節']},
+  {dbId:154, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'洗澡前幫忙烘熱的大浴巾', d:'在冬夜對方進浴室洗澡時，悄悄把祂準備用的乾淨毛巾用電暖器或除濕機吹得暖呼呼的遞進去。', tags:['體貼','溫暖']},
+  {dbId:155, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'辦公桌前的驚喜熱熱歐蕾', d:'用手機外送App，偷偷叫一份熱榛果拿鐵配肉桂捲，算準休息時間直接送到對方辦公桌。', tags:['驚喜','微預算']},
+  {dbId:156, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'默默幫忙清洗機車擋風擋風鏡', d:'趁著週末下午，把對方每天騎的安全帽防護鏡片用專用噴霧擦得雪亮，毫無任何落塵。', tags:['日常','行動力']},
+  {dbId:157, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'相簿層夾的青澀舊相片', d:'找一張兩人多年前剛戀愛時的青澀小照片，偷偷夾在對方皮夾最容易被看見的那格。', tags:['神祕','懷舊']},
+  {dbId:158, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'冬日晨間提早啟動的暖風', d:'在寒冷的冬天清晨，比對方早十分鐘起床去發動車子、開好車內暖氣，讓祂一上車就暖洋洋。', tags:['體貼','細節']},
+  {dbId:159, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'幫忙清空電商追蹤清單', d:'偷偷看一眼對方在網購購物車裡放了很久卻因為捨不得花錢沒下單的實用外套，偷偷買下送祂。', tags:['用心','驚喜']},
+  {dbId:160, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'擦洗乾淨的隨身保養保養鏡', d:'趁對方在看電視，拿專用布把祂包包裡常用的粉餅鏡或太陽眼鏡擦得一塵不染。', tags:['細節','日常']},
+  {dbId:161, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'提前冰鎮好的精緻高腳杯', d:'知道晚上兩人要在客廳看電影小酌，下午就把兩只玻璃杯默默冰在冰箱冷凍，倒酒時質感滿分。', tags:['微預算','儀式感']},
+  {dbId:162, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'驚喜手作雙色愛心蛋包飯', d:'今天晚餐做蛋包飯時，用番茄醬在金黃色蛋皮上細心畫出一個大大的愛心和對方的名字簡寫。', tags:['廚房','用心']},
+  {dbId:163, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'切好擺漂亮的綜合水果盒', d:'在對方認真開線上會議或忙工作時，默默遞上一盤冰鎮好、插好牙籤的無籽葡萄或切塊芭樂。', tags:['日常','貼心']},
+  {dbId:164, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'玄關擺放整齊的踩歪鞋履', d:'下班回家看到玄關對方的球鞋踩得有點歪斜，順手把它擺得整整齊齊，並把落塵順手拍乾淨。', tags:['日常','細節']},
+  {dbId:165, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'驚喜外帶的排隊排骨酥宵夜', d:'週五下班回家路過那家平時大排長龍的在地炸物店，偷偷排隊買一份對方最愛的甜不辣回家慶祝。', tags:['日常','美食']},
+  {dbId:166, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'包包裡偷偷預備的超輕量折疊傘', d:'看到氣象預報下午降雨機率極高，偷偷在對方出門的隨身包包側邊放一把超輕量抗風折疊傘。', tags:['體貼','日常']},
+  {dbId:167, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'夾在筆記本首頁的加油便簽', d:'在對方下週一有重要報告的那一頁行事曆裡，偷偷夾一張寫著『你最棒了，加油』的手寫便簽。', tags:['神祕','用心']},
+  {dbId:168, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'偷偷安排好的下週末礁溪溫泉雙人遊', d:'趁著天冷，偷偷訂好下週末家附近的雙人獨立湯屋，把時間截圖發給對方讓祂期待。', tags:['計劃感','超貼心']},
+  {dbId:169, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'冰箱冷藏室的驚喜草莓布丁', d:'去超市買兩個高級的日式手工鮮奶布丁，藏在冰箱最深處，晚上抓對方一起當深夜宵夜。', tags:['日常','美食']},
+  {dbId:170, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'更換來電頭像為搞笑鬼臉照', d:'偷偷把對方的通訊軟體來電鈴聲或頭像換成只有你們懂的搞笑外號，等祂下次打來自己發現。', tags:['有趣','甜蜜']},
+  {dbId:171, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'換鞋鞋時遞上盛滿熱水的保溫杯', d:'清晨對方準備出門在玄關換鞋時，迅速把裝滿剛剛好45度溫水的保溫杯塞進祂手心。', tags:['生活細節','溫柔']},
+  {dbId:172, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'路過傳統花鋪買的一枝紅玫瑰', d:'今天路過傳統花攤，隨手花幾十元買一枝紅玫瑰，回家用紙巾包好直接遞給正在陽台晾衣服的祂。', tags:['浪漫','儀式感']},
+  {dbId:173, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'沙發放鬆時自然的頭枕大腿', d:'等對方坐在沙發看新聞時，自然地把頭滑過去躺在祂的大腿上，並抓著祂的手放在自己頭頂。', tags:['親密','放鬆']},
+  {dbId:174, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'書桌並排用電腦時的腳尖輕蹭', d:'兩人並排在餐桌各自用筆電忙碌時，偷偷在桌底下伸出腳尖，輕輕蹭一下對方的腳踝。', tags:['趣味','日常']},
+  {dbId:175, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'看到伴侶站在流理台切菜從背後溫柔環抱靠肩', d:'看到對方在流理台洗碗，悄悄走過去從身後雙手環抱住祂，把臉埋進祂寬闊的後背。', tags:['親密','溫柔']},
+  {dbId:176, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'鬧區散步時主動換邊牽手擋人流', d:'在喧囂的夜市散步散步時，主動把對方拉到自己內側，換用另一隻手牽，用身體替祂擋人群。', tags:['安全感','體貼']},
+  {dbId:177, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'並靠著看電視時的指尖勾勾打圈', d:'兩人都靠在沙發上放鬆時，伸出食指去悄悄勾住對方的食指，在掌心裡輕輕打圈。', tags:['趣味','心動']},
+  {dbId:178, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'伸出熱呼呼雙手捧住對方冰涼雙頰', d:'看到對方剛從寒冷的室外走進來，立刻伸出熱呼呼的雙手掌心，捧住祂冰涼的臉頰。', tags:['溫柔','日常']},
+  {dbId:179, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'溫柔幫忙撥開掉在額前的瀏海髮絲', d:'正對視長談時，看到對方有一縷碎髮掉在額前，伸手溫柔地把它撥到耳後，指尖順便碰碰祂的耳朵。', tags:['細膩','溫柔']},
+  {dbId:180, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'低頭穿鞋鞋時無預警整個人趴背緊抱', d:'趁對方背對你正在玄關低頭穿鞋時，毫無預警地從身後整個人趴在祂背上摟住祂。', tags:['親密','心動']},
+  {dbId:181, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'十指緊扣散步時大拇指在手背輕揉', d:'在外十指緊扣散步散步時，用你的大拇指在對方的虎口或手背上，輕輕、規律地來回揉捏。', tags:['趣味','甜蜜']},
+  {dbId:182, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'清晨睜開眼睛在祂長長睫毛上的輕吻', d:'早晨醒來看到對方還在熟睡，撐起身體，在祂長長的睫毛或額頭上留下一個羽毛般的輕吻。', tags:['親密','清晨']},
+  {dbId:183, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'擠好護手霜後極其溫柔的手部指節按摩', d:'擠好護手霜後，主動把對方的雙手拉過來，順著指節、指甲邊緣一根根細心幫祂揉勻。', tags:['日常','體貼']},
+  {dbId:184, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'等紅燈時右手伸過去覆蓋十指緊扣', d:'開車遇到漫長的紅燈時，右手主動伸過去疊在對方放在大腿的左手上，並十指緊扣。', tags:['安全感','日常']},
+  {dbId:185, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'客廳討論事情時用雙手牢牢包裹祂的手', d:'兩人在客廳嚴肅討論事情時，手主動伸過去把對方的雙手牢牢包在自己掌心，給予力量。', tags:['陪伴','安定']},
+  {dbId:186, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'出門前站在正面幫忙理平翻折的衣領', d:'出門前站在對方正面，幫祂把壓在大衣裡面的襯衫衣領翻出來、理平，再順手幫祂拉好拉鍊。', tags:['生活細節','溫柔']},
+  {dbId:187, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'走過去默默幫打鍵盤的手腕大魚際按揉', d:'看到對方對著電腦敲擊鍵盤一下午，走過去把祂的手拉過來，用掌心幫祂揉揉大魚際。', tags:['體貼','日常']},
+  {dbId:188, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'林蔭道散步時手自然伸過去環繞摟住腰', d:'在外散步走在無人林蔭道上時，手自然地伸過去環繞住對方的腰，把祂往自己身體拉近。', tags:['趣味','甜蜜']},
+  {dbId:189, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'被窩被子裡調皮的腳丫互相踩碰敲擊', d:'關了燈、躺在被窩裡準備入睡時，故意用自己的腳丫去碰碰對方的腳，在被子裡打鬧。', tags:['日常','趣味']},
+  {dbId:190, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'洗完臉時正面溫柔幫忙吸乾臉部水珠', d:'看到對方剛洗完臉滿臉水珠，順手拿起旁邊的乾淨毛巾，站在正面溫柔地幫祂吸乾水份。', tags:['細節','體貼']},
+  {dbId:191, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'搓熱雙手掌心突然貼在對方脖子兩側保暖', d:'把雙手搓得熱乎乎的，然後突然從正面貼在對方正在看書或看電視的脖子兩側幫飯店保暖。', tags:['趣味','日常']},
+  {dbId:192, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'吃飯時主動用紙巾幫對方擦掉嘴角碎屑', d:'看見對方吃東西嘴角沾了一點醬汁，不說話，直接拿起面紙動作溫柔地幫祂輕輕抹掉。', tags:['細節','甜蜜']},
+  {dbId:193, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手牽手探索微型獨立老書店', d:'去市區歷史老街區尋找一家獨立書店，各自挑一本古怪的雜誌，並肩坐在長椅上看。', tags:['文青','日常']},
+  {dbId:194, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雙人客廳精油揉背解壓操', d:'在臥室點亮小夜燈、播放水晶音樂，兩人輪流使用天然植物精油幫對方揉推整個後背。', tags:['放鬆','親密']},
+  {dbId:195, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'漁港大吃現炸旗魚黑輪', d:'週末午後不看地圖開車去附近的漁港，吹著微鹹的海風，排隊買在地現炸的手工小吃。', tags:['冒險','美食']},
+  {dbId:196, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'重溫熱戀期深夜高架兜風', d:'午夜十一點開車上城市的環狀快速道路，不設終點，播著輕爵士音樂，安靜地握手兜風。', tags:['浪漫','兜風']},
+  {dbId:197, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手作植物共生微型苔蘚缸', d:'買個大玻璃瓶與一些野外採集的青苔、小石子，兩人在餐桌用夾子細心堆疊出微型森林。', tags:['日常','植物']},
+  {dbId:198, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'無手機干擾的客廳長談', d:'晚上關掉家裡所有 3C 手機與電視，在柔和的燈光下，兩人單純盤腿坐著聊聊彼此最近的心事。', tags:['專注','深度對話']},
+  {dbId:199, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'後山秘境露天掀車尾箱觀星', d:'開車去山頂平坦的大停車場，把掀背車後座放平，鋪滿枕頭，兩人躺在車廂裡往外看星星。', tags:['浪漫','戶外']},
+  {dbId:200, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手作水果刨冰巨無霸挑戰', d:'兩人在廚房把家裡的西瓜或鳳梨切塊堆成小山，淋上滿滿煉乳，拿兩支湯匙互相餵食. 。', tags:['廚房','美食']},
+  {dbId:201, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'二手舊唱片行黑膠懷舊慢遊', d:'去市區地下的舊貨唱片行，指著那些老黑膠的外殼，回憶初中時代彼此瘋狂迷過哪個偶像。', tags:['懷舊','文青']},
+  {dbId:202, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'冬日陽台曬太陽聽白噪音放空', d:'冬日午後不吹冷氣，搬兩張板凳去陽台，播放森林溪流的白噪音，兩人在陽光下閉目養神。', tags:['舒適','免費']},
+  {dbId:203, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'老式保齡球館雙人賭洗碗PK賽', d:'去那家很多年沒去的保齡球館打兩局，誰的總分低，誰就要承包今天跟明天的洗碗工作。', tags:['趣味','運動']},
+  {dbId:204, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'微型皮革拼貼手作護照夾', d:'網購一包簡單的皮革拼貼包，兩人在餐桌用白膠與小針線，幫對方縫製一個旅行用的吊牌。', tags:['工藝','用心']},
+  {dbId:205, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'清晨無人植物步道負離子吸氧', d:'清晨六點帶上半保溫瓶的熱咖啡，去家附近的後山林道，享受沒有喧囂的乾淨森林空氣。', tags:['健康','戶外']},
+  {dbId:206, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'超市醬料區未知南洋風味盲盒探索', d:'一起逛超市時盲選一瓶從沒買過的泰式或南洋辣醬，晚上不管煮什麼都沾一點來大膽嘗試。', tags:['日常','有趣']},
+  {dbId:207, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'深夜路邊老字號小攤黑輪對坐', d:'大雨降溫的午夜，手牽手走去巷口那家亮著昏黃燈光的手工黑輪攤，捧著熱湯面對面聊天聊天。', tags:['浪漫','美食']},
+  {dbId:208, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'重溫戀愛最初牽手看夜景的長椅', d:'開車回到十年前你們相約看夜景的那個公園長椅，坐著吹相同的風，感嘆那時的青澀。', tags:['懷舊','儀式感']},
+  {dbId:209, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'無目的深夜省道長途兜風冒險', d:'開車駛向沒有測速相機的寬闊省道，不開大燈外的任何裝飾，只聽純鋼琴純音樂慢速行駛。', tags:['放鬆','浪漫']},
+  {dbId:210, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雙人臥室舒壓精油腳底穴位按摩', d:'準備一盆溫熱水給對方泡腳，隨後用指腹幫祂細心按壓腳底大拇指下方，緩解整天久站疲勞。', tags:['放鬆','體貼']},
+  {dbId:211, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手牽手走遍高鐵站頂樓露天平台', d:'不坐車，專程開車去高鐵站的公共高空露天露台，看鋼軌列車在遠方一呼而過，視野極佳。', tags:['探索','視野']},
+  {dbId:212, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'手作五彩不乾膠微型馬賽克拼貼畫', d:'去文具店買一包馬賽克彩色貼紙，兩人在白紙上一起拼出一個愛心圖案，貼在冰箱側門。', tags:['趣味','動手']},
+  {dbId:213, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'二手市集尋找上世紀復古老玻璃杯', d:'週末午後逛逛跳蚤市場，專挑那種印有老字號汽水標籤的彩色厚玻璃杯回家當情侶水杯。', tags:['懷舊','日常']},
+  {dbId:214, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'河濱草皮並肩躺看棉花糖白雲移動', d:'帶塊乾淨的墊子鋪在公園大樹下，兩人平躺著，閉上眼睛聽周圍風吹樹葉的沙沙聲。', tags:['免費','放鬆']},
+  {dbId:215, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'雙人羽毛球爭奪週日早餐大賽', d:'去社區公園的空地用便宜的羽毛球拍對打20下，連續不落地，失敗的人明天負責買早餐。', tags:['趣味','運動']},
+  {dbId:316, bc:'d', bl:'約會點子', ic:'ti-map-pin', t:'陽台蠟燭合唱懷舊金曲', d:'今晚把家裡電閘拉掉十分鐘，在客廳點一盞大蠟燭，兩人靠著牆壁輕聲哼唱以前的老歌。', tags:['浪漫','宅家']},
+  {dbId:317, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'讚美對方的生活智慧', d:'在對方熟練用一根小鐵絲通了排水孔時，笑著說：『你真的太聰明了，有你真靠譜！』', tags:['稱讚','日常']},
+  {dbId:318, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'深情依靠的專屬情話宣言', d:'沙發看新聞時，把頭枕在祂肩膀上：『世界上最好聽的聲音，就是你在我耳邊呼吸。』', tags:['真心','安定']},
+  {dbId:319, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'謝謝你每天為家早起操勞', d:'在清晨看到對方揉著眼睛準備去玄關拿鑰匙時：『謝謝你每天都這麼早起為我們家打拼。』', tags:['感恩','清晨']},
+  {dbId:320, bc:'w', bl:'今日一句話', ic:'ti-message-heart', t:'出差在外時的一通想念短訊', d:'在對方因公出差住進飯店的第一晚發訊息：『房間裡少了你的味道，突然變得好安靜，好想你。』', tags:['甜蜜','即時']},
+  {dbId:321, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'副駕駛座的驚喜手寫小卡', d:'在伴侶拉開副駕駛座車門前，悄悄在座位上放一張精美的小卡片，寫上「今天下班帶你去吃大餐！」。', tags:['驚喜','甜蜜']},
+  {dbId:322, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'車窗防霧劑的貼心塗抹', d:'在下雨的清晨，搶在伴侶出門開車前，幫祂把兩側後視鏡 and 車窗玻璃用防霧劑仔細擦拭乾淨。', tags:['安全感','體貼']},
+  {dbId:323, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'冰箱側門的客製冰淇淋', d:'偷偷買回兩盒對方碎碎念很久的高級限定口味冰淇淋，冰在冰箱最前排，給晚上追劇的祂一個驚喜。', tags:['日常','美食']},
+  {dbId:324, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'辦公桌上的低調維他命', d:'在對方出門上班前，偷偷在祂的隨身水杯旁放一包綜合維他命，附上小紙條寫著「記得補充體力」。', tags:['日常','體貼']},
+  {dbId:325, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'藏在手機殼背面的紙鈔金', d:'悄悄在伴侶常用的透明手機殼背面，夾一張摺得整齊的一百元紙鈔，寫著「這是我請你的神祕午餐奶茶」。', tags:['有趣','驚喜']},
+  {dbId:326, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'提前調好溫度的客廳空調', d:'預估伴侶快要到家的前十分鐘，提前幫祂把客廳的冷氣或暖氣開好，讓祂推開門就感受到最舒服的溫度。', tags:['細節','貼心']},
+  {dbId:327, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'神祕洗淨的長大衣', d:'趁對方週末休息，把祂最心愛、但一直沒空送洗的冬季大衣拿去乾洗，整齊掛回衣櫃最顯眼處。', tags:['行動力','暖心']},
+  {dbId:328, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'車上隱藏的藍牙音樂歌單', d:'偷偷在車上的音樂播放清單裡，新增一個名為「祂的最愛」分頁，放滿對方平時只要聽到就會跟著哼的情歌。', tags:['細節','關注']},
+  {dbId:329, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'手作番茄醬愛心蛋包飯', d:'今天做蛋包飯晚餐時，用番茄醬在金黃色蛋皮表面細心畫一個完美的愛心，並畫上一個調皮笑臉。', tags:['廚房','儀式感']},
+  {dbId:330, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'洗淨去蒂的草莓保鮮盒', d:'買一盒新鮮草莓，洗乾淨、精細地把蒂頭全部切掉，裝進保鮮盒裡冰鎮，在對方看電視時遞過去。', tags:['貼心','水果']},
+  {dbId:331, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'玄關球鞋的隱藏除臭球', d:'趁對方不注意，把祂上班每天穿的球鞋和皮鞋拿去陽台通風，並在裡面塞入散發淡淡清香的除臭乾爽球。', tags:['生活','細節']},
+  {dbId:332, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'神祕外送的現烤紅豆餅', d:'在下午三點對方工作最累的空檔，偷偷用手機點一份熱騰騰的現烤紅豆餅，直接外送到祂的公司前台。', tags:['下午茶','微預算']},
+  {dbId:333, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'包包裡偷偷預備的超輕量折疊傘', d:'看到今天大太陽，趁對方出門前，默默在祂的隨身包包夾層裡放一頂超輕量的折疊遮陽防曬帽。', tags:['體貼','日常']},
+  {dbId:334, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'手寫的下週電影院預約券', d:'手寫一張精緻的「陪看電影兌換券」，藏在祂的皮夾裡，約定好下週五下班一起去影城看祂期待的大片。', tags:['期待感','用心']},
+  {dbId:335, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'浴室鏡子上的水蒸氣告白', d:'洗完熱水澡、鏡子上佈滿水蒸氣時，用指腹在鏡面上寫下「今天也很愛你」，等對方進去洗漱時自己發現。', tags:['趣味','神祕']},
+  {dbId:336, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'提前洗淨擰乾的常用泡茶杯', d:'在對方準備泡下午茶前，提前幫祂把最常用的瓷杯用熱水燙過、洗得乾乾淨淨、規矩地擺在茶几上。', tags:['生活','日常']},
+  {dbId:337, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'偷偷藏在枕頭下的香氛包', d:'買一個淡淡薰衣草香的天然香氛草包，偷偷塞在對方的枕頭套夾層裡，讓祂今晚整夜都能做個好夢。', tags:['睡眠','療癒']},
+  {dbId:338, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'更改通訊軟體的專屬特別來電鈴聲', d:'把對方在您手機裡的來電鈴聲，換成你們第一次一起在演唱會聽到的那一首主題曲，每次響起都是回憶。', tags:['甜蜜','細節']},
+  {dbId:339, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'換鞋出門時的一杯溫潤花茶', d:'清晨伴侶坐在玄關換鞋準備去上班時，迅速遞上一小杯泡好、溫度剛好可以一口喝下的枸杞菊花茶。', tags:['健康','清晨']},
+  {dbId:340, bc:'s', bl:'小驚喜', ic:'ti-gift', t:'書桌夾層裡的一枚手繪愛心書籤', d:'用厚紙板剪一個簡單的書籤，上面用色鉛筆畫一個愛心，偷偷夾在祂最近每天晚上都要讀的那本筆記本裡。', tags:['用心','手作']},
+  {dbId:341, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'並排散步時的勾勾小指頭', d:'並排走在無人公園小路上時，不用整隻手牽，調皮地只伸出自己的小指頭，去勾住對方的雙手小指。', tags:['心動','趣味']},
+  {dbId:342, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'洗完臉時的主動面紙吸水', d:'看見伴侶剛洗完臉、滿臉裝水珠準備找毛巾，主動拿兩張面紙，走過去溫柔地幫祂把眼睛周圍吸乾。', tags:['細節','溫柔']},
+  {dbId:343, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'搓熱掌心貼在對方的後頸保暖', d:'在冷氣房裡發現對方肩膀有點縮著，迅速把自己的雙手大力搓熱，然後從正面輕輕貼在祂的後頸幫忙保暖。', tags:['趣味','日常']},
+  {dbId:344, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'餐桌吃甜點時的嘴角醬汁輕抹', d:'看見伴侶吃蛋糕嘴角沾了一點奶油，自然地伸出大拇指指腹幫祂輕輕抹掉，再轉頭對祂溫柔一笑。', tags:['細節','甜蜜']},
+  {dbId:345, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'聊天聊到一半時的輕捏鼻頭', d:'在兩人在客廳開玩笑開得正開心時，伸出手指調皮地輕輕捏一下祂的鼻頭，笑著說祂今天好可愛。', tags:['有趣','親密']},
+  {dbId:346, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'睡前黑暗被窩裡的腳底板對碰', d:'剛關燈躺進被窩、準備入睡的安靜時刻，故意用自己的腳底板去蹭蹭對方的腳，在被子裡無聲打鬧。', tags:['日常','有趣']},
+  {dbId:347, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'幫忙翻正大衣裡面塞住的襯衫領口', d:'出門前站在對方正對面，伸手幫祂把卡在大衣裡面的襯衫領子細心拉出來、理平，再幫祂把拉鍊拉好。', tags:['細節','日常']},
+  {dbId:348, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'看電腦用滑鼠時的手腕輕揉按摩', d:'看見對方坐在書桌前用滑鼠打字一下午，走過去把祂的手拉過來，用大拇指順著祂的手腕大魚際輕輕揉捏。', tags:['日常','解壓']},
+  {dbId:349, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'排隊等結帳時的背後下巴輕靠', d:'在超市大排長龍等結帳時，從背後貼近對方，把下巴極其自然地擱在祂的肩膀上，一起看推車裡的零食。', tags:['親密','依偎']},
+  {dbId:350, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'並排坐沙發時的手臂自然輕貼', d:'今天晚上在客廳各自滑手機放鬆時，故意坐得離對方近一點，讓彼此的整隻手臂無間隙地貼在一起。', tags:['陪伴','日常']},
+  {dbId:352, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'過馬路時突然的十指緊扣施力', d:'一起手牽手走在斑馬線上時，突然加重手掌的力道，把五個手指緊緊扣進對方的指縫裡，給予十足安全感。', tags:['安全感','溫塊']},
+  {dbId:353, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'起床時順手幫忙撥開雜亂的瀏海', d:'清晨兩人都剛睜開眼睛、還躺在枕頭上時，伸手溫柔地把對方額前睡得凌亂的幾縷頭髮撥到耳朵後面。', tags:['細膩','溫柔']},
+  {dbId:354, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'幫忙塗護手霜時的十指交叉推勻', d:'在擠護手霜時順便幫對方擠一點，然後抓起祂的雙手，像洗手一樣十指交叉，仔細幫祂把手背推勻。', tags:['體貼','日常']},
+  {dbId:355, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'開車停等紅燈時的左手溫柔覆蓋', d:'開車遇到長達 90 秒的紅燈時，把右手從方向盤移開，溫柔地整隻手掌覆蓋在副駕駛座伴侶的大腿手上。', tags:['日常','安全感']},
+  {dbId:356, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'嚴肅討論家務時的雙手包裹安慰', d:'兩人在客廳討論下個月開銷或公事時，主動把手伸過去，用雙手把對方的右手牢牢包裹在手心裡。', tags:['陪伴','安定']},
+  {dbId:357, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'出門散步時自然環繞摟住對方的腰', d:'在安靜的重劃區馬路漫步時，right-hint 臂自然地伸過去環繞住對方的腰，把祂的身體往自己身上輕輕靠。', tags:['甜蜜','日常']},
+  {dbId:358, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'突如其來的雙手捧臉深情對視', d:'走過去用雙手掌心輕輕捧起對方的雙頰，什麼都不說，眼睛一眨不眨地深情對視三秒，然後對祂微笑。', tags:['心動','有趣']},
+  {dbId:359, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'洗完澡後的暖心幫忙吹乾頭髮', d:'等伴侶洗完長頭髮出來，主動接過祂手裡的吹風機，按下溫風，用手指穿過髮絲溫柔幫祂吹乾。', tags:['親密','溫柔']},
+  {dbId:360, bc:'t', bl:'小動作', ic:'ti-hand-love', t:'穿鞋鞋出門前的突襲式熊抱', d:'趁著伴侶低頭在玄關解鞋帶、背對著你的時候，毫無預警地從後面整個人像無尾熊一樣貼上去抱緊。', tags:['親密','心動']}
+];
+
+// ==========================================
+// 2. 核心演算法：一個月不重複發牌引擎
+// ==========================================
+var pool = []; 
+var eIdx = 0;  
+var st = {};   
+var flt = 'all';
+var sIdx = 0;  
+
+if(!window.savedItemsStorage) window.savedItemsStorage = [];
+
+var cardOrder = JSON.parse(localStorage.getItem("app_card_order")) || [];
+var pointer = parseInt(localStorage.getItem("app_deck_pointer")) || 0;
+
+function initGlobalDeck() {
+  var ids = MASTER_DATABASE.map(function(d) { return d.dbId; });
+  cardOrder = ids.sort(function() { return Math.random() - 0.5; });
+  pointer = 0;
+  localStorage.setItem("app_card_order", JSON.stringify(cardOrder));
+  localStorage.setItem("app_deck_pointer", pointer);
+}
+
+if (cardOrder.length !== MASTER_DATABASE.length) {
+  initGlobalDeck();
+}
+
+function fetchMonthNoRepeatSurprises() {
+  if (pointer + 12 > cardOrder.length) {
+    initGlobalDeck();
+  }
+
+  var selected = [];
+  var batchId = Date.now();
+
+  for (var i = 0; i < 12; i++) {
+    var currentDbId = cardOrder[pointer + i];
+    var raw = MASTER_DATABASE.find(function(d) { return d.dbId === currentDbId; });
+    
+    if (!raw) raw = MASTER_DATABASE[i % MASTER_DATABASE.length];
+
+    var item = {
+      id: 'item_' + batchId + '_' + i + '_' + raw.dbId, 
+      dbId: raw.dbId,
+      bc: raw.bc, bl: raw.bl, ic: raw.ic, title: raw.t, desc: raw.d,
+      tags: raw.tags.concat(['未讀靈感'])
+    };
+    selected.push(item);
+
+    if (!st[item.id]) {
+      st[item.id] = { saved: false, done: false, doneDate: '' };
+    }
+  }
+
+  pointer += 12;
+  localStorage.setItem("app_deck_pointer", pointer);
+  
+  return selected;
+}
+
+// ==========================================
+// 3. 介面互動與狀態更新
+// ==========================================
+function freshPool(){
+  var stage = document.getElementById('estage');
+  if (stage) {
+    stage.innerHTML = '<div style="text-align:center;color:#993556;padding:2rem;"><i class="ti ti-loader" style="font-size:24px;display:block;margin-bottom:8px;animation:spin 0.8s linear infinite"></i>正在為您精選完全不重複的點子...</div>';
+  }
+  
+  setTimeout(function(){
+    pool = fetchMonthNoRepeatSurprises();
+    eIdx = 0;
+    buildExplore();
+  }, 200); 
+}
+
+function getCounts(){
+  var all = 0, done = 0;
+  Object.keys(st).forEach(function(id){
+    var s = st[id];
+    if(s.saved || s.done) all++;
+    if(s.done) done++;
+  });
+  return { all: all, done: done, pend: all - done };
+}
+
+function upStats(){
+  var c = getCounts();
+  document.getElementById('n-saved').textContent = c.all;
+  document.getElementById('n-done').textContent = c.done;
+  document.getElementById('cnt-all').textContent = c.all;
+  document.getElementById('cnt-pend').textContent = c.pend;
+  document.getElementById('cnt-done').textContent = c.done;
+  
+
+
+  ['all','pend','done'].forEach(function(k){
+    var el = document.getElementById('s' + k[0]);
+    if(el) el.className = 'stat clickable' + (flt === k ? ' on' : '');
+  });
+}
+
+function filteredList(){
+  return window.savedItemsStorage.filter(function(d){
+    var s = st[d.id] || {saved:false, done:false};
+    if(!(s.saved || s.done)) return false;
+    if(flt === 'pend') return !s.done;
+    if(flt === 'done') return s.done;
+    return true;
+  });
+}
+
+function maintainStorage(item, isSavedOrDone) {
+  var idx = window.savedItemsStorage.findIndex(function(x){ return x.id === item.id; });
+  if(isSavedOrDone && idx === -1) {
+    window.savedItemsStorage.push(item);
+  } else if(!isSavedOrDone && idx !== -1) {
+    window.savedItemsStorage.splice(idx, 1);
+  }
+}
+
+function cardHTML(item){
+  var s = st[item.id] || {saved:false, done:false, doneDate:''};
+  var isSaved = s.saved || s.done;
+  var isDone = s.done;
+  var titleStyle = isDone ? ' style="text-decoration:line-through;opacity:.5;color:#0F6E56"' : '';
+  var statusHTML = isDone
+    ? '<span class="done-tag"><i class="ti ti-check" style="font-size:11px"></i>已執行' + (s.doneDate ? ' · ' + s.doneDate : '') + '</span>'
+    : isSaved ? '<span class="pend-tag">未執行</span>' : '';
+  var doneCls = 'donebtn' + (isDone ? ' done' : '') + (isSaved ? '' : ' hidden');
+  var doneTxt = isDone ? '<i class="ti ti-rotate-clockwise"></i> 取消執行' : '<i class="ti ti-check"></i> 標記執行';
+    
+  return '<div class="ind l" id="ind-l">下一則</div>' // 🎯 已取消向右滑出現不喜歡設定，左右滑動回歸順序動線
+    + '<div class="ind r" id="ind-r">下一則</div>'
+    + '<div class="badge ' + item.bc + '"><i class="ti ' + item.ic + '" style="font-size:12px"></i>' + item.bl + '</div>'
+    + '<div class="ctitle"' + titleStyle + '>' + item.title + '</div>'
+    + '<div class="cdesc">' + item.desc + '</div>'
+    + '<div class="tags">' + item.tags.map(function(t){ return '<span class="tag">#' + t + '</span>'; }).join('') + '</div>'
+    + '<div class="status-row">' + statusHTML + '</div>'
+    + '<div class="cbot"><div class="cbot-row">'
+    + '<button class="savebtn' + (isSaved ? ' on' : '') + '" onclick="tapSave(\'' + item.id + '\')">' + (isSaved ? '已收藏 ♡' : '收藏 ♡') + '</button>'
+    + '<button class="' + doneCls + '" onclick="tapDone(\'' + item.id + '\')">' + doneTxt + '</button>'
+    + '</div></div>';
+}
+
+function buildExplore(anim){
+  if(!pool.length || !pool[eIdx]) return;
+  var item = pool[eIdx];
+  var stage = document.getElementById('estage');
+  stage.innerHTML = '<div class="bg3"></div><div class="bg2"></div><div class="card" id="ec">' + cardHTML(item) + '</div>';
+  document.getElementById('ectr').textContent = (eIdx + 1) + ' / ' + pool.length;
+  if(anim){ document.getElementById('ec').classList.add(anim === 'r' ? 'come-r' : 'come-l'); }
+  bindDrag('ec');
+  upStats();
+}
+
+function tapSave(id){
+  if(!st[id]) st[id] = {saved:false, done:false, doneDate:''};
+  var s = st[id]; if(s.done) return;
+  s.saved = !s.saved;
+  var currentItem = pool.find(function(x){return x.id === id;}) || window.savedItemsStorage.find(function(x){return x.id === id;});
+  if(currentItem) maintainStorage(currentItem, s.saved || s.done);
+  
+  rebuildCards(); upStats();
+  if(document.getElementById('vs').style.display !== 'none') renderSaved('same');
+}
+
+function dateStr(){
+  var d = new Date();
+  return d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate();
+}
+
+function tapDone(id){
+  if(!st[id]) st[id] = {saved:false, done:false, doneDate:''};
+  var s = st[id]; s.done = !s.done;
+  if(s.done){ s.saved = true; s.doneDate = dateStr(); } else { s.doneDate = ''; }
+  var currentItem = pool.find(function(x){return x.id === id;}) || window.savedItemsStorage.find(function(x){return x.id === id;});
+  if(currentItem) maintainStorage(currentItem, s.saved || s.done);
+  
+  // 🎯 【終極修復核心】直接進行全局渲染更新，解決任何狀態下的非同步 Bug！
+  upStats();
+  if(document.getElementById('vs').style.display !== 'none'){
+    var list = filteredList();
+    if(flt !== 'all') {
+      // 在「未執行」或「已執行」分頁，卡片變更狀態後，立刻從該列表重新加載渲染
+      if(sIdx >= list.length) sIdx = Math.max(0, list.length - 1);
+      renderSaved('same');
+    } else {
+      // 在「全部已收藏」分頁下，外觀直接連動更新
+      var sc = document.getElementById('sc');
+      if(sc && list[sIdx]) sc.innerHTML = cardHTML(list[sIdx]);
+    }
+  } else {
+    rebuildCards();
+  }
+}
+
+function rebuildCards(){
+  var ec = document.getElementById('ec');
+  if(ec && pool[eIdx]){ ec.innerHTML = cardHTML(pool[eIdx]); bindDrag('ec'); }
+  var sc = document.getElementById('sc');
+  if(sc){ 
+    var list = filteredList(); 
+    if(list[sIdx]){ 
+      sc.innerHTML = cardHTML(list[sIdx]); bindDrag('sc'); 
+    } else {
+      renderSaved(); 
+    }
+  }
+}
+
+function askRefresh(){ document.getElementById('overlay').style.display = 'flex'; }
+function closeDialog(){ document.getElementById('overlay').style.display = 'none'; }
+function doRefresh(){ closeDialog(); freshPool(); }
+
+function setF(f){ flt = f; sIdx = 0; upStats(); renderSaved(); }
+
+function renderSaved(anim){
+  var list = filteredList();
+  var stage = document.getElementById('sstage');
+  var nav = document.getElementById('snav');
+  var ctr = document.getElementById('sctr');
+  upStats();
+  if(list.length === 0){
+    nav.style.visibility = 'hidden'; ctr.textContent = '';
+    var msg = flt === 'done' ? '還沒有已執行的驚喜，快去行動吧！' : flt === 'pend' ? '沒有未執行項目，你們好棒！' : '還沒有收藏，快去滑動探索卡片吧！';
+    stage.innerHTML = '<div class="no-card"><i class="ti ti-heart" style="font-size:24px;color:#ED93B1"></i><p>' + msg + '</p></div>';
+    return;
+  }
+  if(sIdx >= list.length) sIdx = list.length - 1;
+  if(sIdx < 0) sIdx = 0;
+  nav.style.visibility = 'visible';
+  ctr.textContent = (sIdx + 1) + ' / ' + list.length;
+  var item = list[sIdx];
+  stage.innerHTML = '<div class="bg3"></div><div class="bg2"></div><div class="card" id="sc">' + cardHTML(item) + '</div>';
+  if(anim && anim !== 'same'){ var c = document.getElementById('sc'); if(c) c.classList.add(anim === 'r' ? 'come-r' : 'come-l'); }
+  bindDrag('sc');
+}
+
+// ==========================================
+// 4. 手勢物理學（Tinder 滑動交互）
+// ==========================================
+var drag = { on: false, sx: 0, cx: 0, who: '' };
+
+function bindDrag(cid){
+  var c = document.getElementById(cid); if(!c) return;
+  var who = cid === 'ec' ? 'e' : 's';
+  c.addEventListener('mousedown', function(e){ drag.on = true; drag.sx = e.clientX; drag.cx = 0; drag.who = who; c.classList.add('grab'); e.preventDefault(); });
+  c.addEventListener('touchstart', function(e){ drag.on = true; drag.sx = e.touches[0].clientX; drag.cx = 0; drag.who = who; }, { passive: true });
+}
+
+document.addEventListener('mousemove', function(e){ if(!drag.on) return; drag.cx = e.clientX - drag.sx; applyDrag(drag.cx); });
+document.addEventListener('touchmove', function(e){ if(!drag.on) return; drag.cx = e.touches[0].clientX - drag.sx; applyDrag(drag.cx); }, { passive: true });
+
+function applyDrag(dx){
+  var c = document.getElementById(drag.who === 'e' ? 'ec' : 'sc');
+  var il = document.getElementById('ind-l'); var ir = document.getElementById('ind-r');
+  if(!c) return;
+  c.style.transform = 'translateX(' + dx + 'px) rotate(' + (dx * .065) + 'deg)';
+  var r = Math.min(Math.abs(dx) / 80, 1);
+  // 🎯 【取消設定】向右滑不再顯示「不喜歡」字樣（將 il 限制為僅在左滑時觸發或全關閉，此處全面保留流暢換牌動線提示）
+  if(il) il.style.opacity = dx < 0 ? r : 0;
+  if(ir) ir.style.opacity = dx > 0 ? r : 0;
+}
+
+document.addEventListener('mouseup', endDrag);
+document.addEventListener('touchend', endDrag);
+
+function endDrag(){
+  if(!drag.on) return;
+  var who = drag.who; var cx = drag.cx; drag.on = false;
+  var c = document.getElementById(who === 'e' ? 'ec' : 'sc');
+  if(c) c.classList.remove('grab');
+  if(cx < -60) doSlide('l', who);
+  else if(cx > 60) doSlide('r', who);
+  else{
+    if(c) c.style.transform = '';
+    var il = document.getElementById('ind-l'); var ir = document.getElementById('ind-r');
+    if(il) il.style.opacity = 0; if(ir) ir.style.opacity = 0;
+  }
+  drag.cx = 0;
+}
+
+function doSlide(dir, who){
+  var c = document.getElementById(who === 'e' ? 'ec' : 'sc'); if(!c) return;
+  c.classList.add(dir === 'l' ? 'go-l' : 'go-r');
+  setTimeout(function(){
+    if(who === 'e'){
+      var next = dir === 'l' ? (eIdx - 1 + pool.length) % pool.length : (eIdx + 1) % pool.length;
+      eIdx = next; buildExplore(dir === 'l' ? 'r' : 'l');
+    }else{
+      var list = filteredList(); if(!list.length){ renderSaved(); return; }
+      sIdx = dir === 'l' ? (sIdx - 1 + list.length) % list.length : (sIdx + 1) % list.length;
+      renderSaved(dir === 'l' ? 'r' : 'l');
+    }
+  }, 260);
+}
+
+function goTab(t){
+  document.getElementById('ve').style.display = t === 'e' ? '' : 'none';
+  document.getElementById('vs').style.display = t === 's' ? '' : 'none';
+  document.getElementById('te').className = 'tab' + (t === 'e' ? ' on' : '');
+  document.getElementById('ts').className = 'tab' + (t === 's' ? ' on' : '');
+  if(t === 's'){ sIdx = 0; renderSaved(); }
+}
+
+var style = document.createElement('style');
+style.innerHTML = '@keyframes spin { to { transform: rotate(360deg); } }';
+document.head.appendChild(style);
+
+// 開機無延遲初始化
+freshPool();
+// PWA Service Worker 註冊
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js")
+    .then(function(){ console.log("SW registered"); })
+    .catch(function(e){ console.log("SW error", e); });
+}
+</script>
+</body>
+</html>
