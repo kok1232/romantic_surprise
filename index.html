@@ -433,11 +433,11 @@ var MASTER_DATABASE = [
 // ==========================================
 var pool = []; 
 var eIdx = 0;  
-var st = {};   
+var st = JSON.parse(localStorage.getItem("app_st")) || {};
 var flt = 'all';
-var sIdx = 0;  
+var sIdx = 0;
 
-if(!window.savedItemsStorage) window.savedItemsStorage = [];
+if(!window.savedItemsStorage) window.savedItemsStorage = JSON.parse(localStorage.getItem("app_saved")) || [];
 
 var cardOrder = JSON.parse(localStorage.getItem("app_card_order")) || [];
 var pointer = parseInt(localStorage.getItem("app_deck_pointer")) || 0;
@@ -546,6 +546,8 @@ function maintainStorage(item, isSavedOrDone) {
   } else if(!isSavedOrDone && idx !== -1) {
     window.savedItemsStorage.splice(idx, 1);
   }
+  localStorage.setItem("app_saved", JSON.stringify(window.savedItemsStorage));
+  localStorage.setItem("app_st", JSON.stringify(st));
 }
 
 function cardHTML(item){
